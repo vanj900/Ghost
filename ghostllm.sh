@@ -1,49 +1,53 @@
 #!/usr/bin/env bash
-# ghostllm.sh — LLM interface for Ghost.
-# Handles prompt construction and communication with language model backends.
+# ghostllm.sh — Talks to Ollama. No API keys. No cloud. Pure local vibes.
+# Requires: curl, jq (optional but recommended)
 
 set -euo pipefail
 
-# Default model endpoint (override via environment)
 GHOST_LLM_ENDPOINT="${GHOST_LLM_ENDPOINT:-http://localhost:11434/api/generate}"
-GHOST_LLM_MODEL="${GHOST_LLM_MODEL:-llama3}"
+GHOST_LLM_MODEL="${GHOST_LLM_MODEL:-llama3.2}"
+GHOST_LLM_TIMEOUT="${GHOST_LLM_TIMEOUT:-30}"
 
 ghost_llm_query() {
-  local prompt="${1:-}"
-  if [[ -z "$prompt" ]]; then
-    echo "[ghostllm] No prompt provided." >&2
-    return 1
-  fi
+  local prompt="${1:?ghost_llm_query: prompt required}"
+  local model="${2:-$GHOST_LLM_MODEL}"
 
-  echo "[ghostllm] Querying model '${GHOST_LLM_MODEL}' at ${GHOST_LLM_ENDPOINT}"
-
-  local payload response
+  # Build the JSON payload (prefer jq; fall back to sed-based escaping)
+  local payload
   if command -v jq &>/dev/null; then
-    payload="$(jq -n --arg model "$GHOST_LLM_MODEL" --arg prompt "$prompt" \
-      '{"model":$model,"prompt":$prompt,"stream":false}')"
+    payload=$(jq -nc \
+      --arg m "$model" \
+      --arg p "$prompt" \
+      '{"model":$m,"prompt":$p,"stream":false}')
   else
-    # Minimal escaping: backslash then double-quote then control chars
-    local escaped_prompt escaped_model
-    escaped_prompt="$(printf '%s' "$prompt" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g')"
-    escaped_model="$(printf '%s' "$GHOST_LLM_MODEL" | sed 's/\\/\\\\/g; s/"/\\"/g')"
-    payload="{\"model\":\"${escaped_model}\",\"prompt\":\"${escaped_prompt}\",\"stream\":false}"
+    local ep em
+    ep=$(printf '%s' "$prompt" | sed 's/\\/\\\\/g; s/"/\\"/g; s/	/\\t/g; s/$/\\n/' | tr -d '\n' | sed 's/\\n$//')
+    em=$(printf '%s' "$model"  | sed 's/"/\\"/g')
+    payload="{\"model\":\"${em}\",\"prompt\":\"${ep}\",\"stream\":false}"
   fi
 
-  response="$(curl --silent --fail \
+  # Send to Ollama; return graceful placeholder if offline
+  local raw
+  raw=$(curl -s --fail --max-time "$GHOST_LLM_TIMEOUT" \
     -X POST "$GHOST_LLM_ENDPOINT" \
     -H "Content-Type: application/json" \
-    -d "$payload")"
+    -d "$payload" 2>/dev/null) || {
+      echo "(ollama offline — dreaming alone)"
+      return 0
+    }
 
+  # Pull out the .response field
   if command -v jq &>/dev/null; then
-    printf '%s' "$response" | jq -r '.response // empty'
+    printf '%s' "$raw" | jq -r '.response // "(no response)"'
   else
-    printf '%s' "$response" \
+    printf '%s' "$raw" \
       | grep -o '"response":"[^"]*"' \
-      | sed 's/"response":"//;s/"$//'
+      | sed 's/"response":"//; s/"$//' \
+      || echo "(parse error)"
   fi
 }
 
-# Entry point when run directly
+# Run directly for a quick test
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
-  ghost_llm_query "${1:-Who are you?}"
+  ghost_llm_query "${1:-Who are you, really?}"
 fi
