@@ -1,22 +1,20 @@
-# OS files
+# OS / editor noise
 .DS_Store
 Thumbs.db
-
-# Editor files
 *.swp
 *.swo
 *~
 .idea/
 .vscode/
 
-# Logs
+# Runtime logs
 *.log
 
-# Runtime / temp files
-*.pid
-*.tmp
-/tmp/
+# Ghost's RAM files (never committed — they live and die with the process)
+/dev/shm/ghost_*.db
+/dev/shm/ghost_*.json
+ghost_model_*.json
+ghost_memory_*.db
 
-# Ghost state dumps (should never be committed)
-ghost_state_*.json
-ghost_memory_*.bin
+# Named pipe (auto-created on start)
+/tmp/ghost.pipe

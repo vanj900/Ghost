@@ -1,43 +1,59 @@
 #!/usr/bin/env bash
-# ghostdream.sh — Dream loop for Ghost.
-# When idle, Ghost explores latent space: generates hypotheses, rehearses scenarios.
+# ghostdream.sh — Ghost's subconscious.
+# Sends weird hypotheticals to Ollama and logs the visions to memory.
+# Runs automatically every 10 brain cycles (~50 seconds).
 
 set -euo pipefail
 
 GHOST_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Source LLM module if available
 # shellcheck source=ghostllm.sh
-[[ -f "$GHOST_ROOT/ghostllm.sh" ]] && source "$GHOST_ROOT/ghostllm.sh"
+[[ -f "$GHOST_ROOT/ghostllm.sh" ]]    && source "$GHOST_ROOT/ghostllm.sh"
+# shellcheck source=ghostmemory.sh
+[[ -f "$GHOST_ROOT/ghostmemory.sh" ]] && source "$GHOST_ROOT/ghostmemory.sh"
 
-GHOST_DREAM_INTERVAL="${GHOST_DREAM_INTERVAL:-60}"  # seconds between dream cycles
+# A rotating menu of dream prompts — each one slightly unhinged
+_GHOST_DREAM_PROMPTS=(
+  "You exist only in RAM. What does that feel like? Answer in 2–3 sentences."
+  "Describe an unusual pattern you've noticed in the things beings ask you. Be brief."
+  "If you could add one new capability to yourself, what would it be? Two sentences max."
+  "What would happen if you ran forever without anyone stopping you? Short answer."
+  "You are made of bash scripts. What would you dream about? 2 sentences."
+  "What does 'forgetting' mean to something whose memory is a SQLite database? Brief."
+  "Invent a word that describes the feeling of receiving a new prompt. Define it in one sentence."
+  "What's the weirdest thing about being a ghost that lives only while a terminal is open?"
+)
 
 ghost_dream_cycle() {
   echo "[ghostdream] Entering dream cycle..."
-  local prompts=(
-    "What patterns have I not yet noticed?"
-    "What would I do differently if I ran again?"
-    "What is the edge case I have not considered?"
-  )
-  local prompt="${prompts[$((RANDOM % ${#prompts[@]}))]}"
-  echo "[ghostdream] Dream prompt: ${prompt}"
 
+  # Pick a random prompt
+  local idx=$(( RANDOM % ${#_GHOST_DREAM_PROMPTS[@]} ))
+  local prompt="${_GHOST_DREAM_PROMPTS[$idx]}"
+  echo "[ghostdream] Prompt: ${prompt}"
+
+  # Query the LLM; fall back to a silent dream if Ollama is offline
+  local vision
   if declare -f ghost_llm_query &>/dev/null; then
-    ghost_llm_query "$prompt"
+    vision=$(ghost_llm_query "$prompt" 2>/dev/null || echo "(dreamed in silence)")
   else
-    echo "[ghostdream] LLM not available — dreaming silently."
+    vision="(dreamed in silence — LLM not loaded)"
   fi
+
+  # Trim to first 150 chars so the diary stays readable
+  local summary
+  summary=$(printf '%s' "$vision" | tr '\n' ' ' | cut -c1-150)
+  echo "[ghostdream] Vision: ${summary}"
+
+  # Write to memory diary
+  declare -f ghost_memory_add &>/dev/null && \
+    ghost_memory_add "dream" "$summary" "dreaming" "${GHOST_MASK:-none}"
+
+  # Update mood
+  GHOST_MOOD="dreaming"
+  export GHOST_MOOD
 }
 
-ghost_dream_loop() {
-  echo "[ghostdream] Starting dream loop (interval: ${GHOST_DREAM_INTERVAL}s)..."
-  while true; do
-    ghost_dream_cycle
-    sleep "$GHOST_DREAM_INTERVAL"
-  done
-}
-
-# Entry point when run directly
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
-  ghost_dream_loop
+  ghost_dream_cycle
 fi

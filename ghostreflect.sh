@@ -1,38 +1,91 @@
 #!/usr/bin/env bash
-# ghostreflect.sh — Reflection module for Ghost.
-# Ghost looks inward: reviews recent actions, evaluates outcomes, adjusts priors.
+# ghostreflect.sh — Ghost looks inward.
+# Updates confidence + threat scores, logs mask analytics, rotates mood.
+# Runs automatically every 5 brain cycles (~25 seconds).
 
 set -euo pipefail
 
 GHOST_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Source state module if available
-# shellcheck source=ghoststate.sh
-[[ -f "$GHOST_ROOT/ghoststate.sh" ]] && source "$GHOST_ROOT/ghoststate.sh"
+# shellcheck source=ghostmemory.sh
+[[ -f "$GHOST_ROOT/ghostmemory.sh" ]] && source "$GHOST_ROOT/ghostmemory.sh"
 
-ghost_reflect_on_actions() {
-  echo "[ghostreflect] Reviewing recent actions..."
-  if declare -f ghost_state_get &>/dev/null; then
-    local last_action
-    last_action="$(ghost_state_get "last_action" 2>/dev/null || echo "none")"
-    echo "[ghostreflect] Last action: ${last_action}"
-  else
-    echo "[ghostreflect] State module not available."
-  fi
+# Clamp an integer between lo and hi
+_reflect_clamp() {
+  local v="$1" lo="${2:-0}" hi="${3:-100}"
+  if (( v < lo )); then v=$lo; fi
+  if (( v > hi )); then v=$hi; fi
+  echo "$v"
 }
 
-ghost_reflect_evaluate() {
-  echo "[ghostreflect] Evaluating outcomes..."
-  # Placeholder: compare expected vs actual outcomes
+# Confidence drifts with a small random walk (feels more alive)
+ghost_reflect_confidence() {
+  local current="${GHOST_M_CONFIDENCE:-50}"
+  local delta=$(( RANDOM % 11 - 5 ))   # −5 to +5
+  GHOST_M_CONFIDENCE=$(_reflect_clamp "$(( current + delta ))")
+  export GHOST_M_CONFIDENCE
 }
 
+# Threat rises if the diary is growing very large (Ghost has been running a long time)
+ghost_reflect_threat() {
+  command -v sqlite3 &>/dev/null || return 0
+  [[ -f "$GHOST_MEMORY_DB" ]]    || return 0
+
+  local count
+  count=$(ghost_memory_count 2>/dev/null || echo 0)
+  local threat=0
+  (( count > 100 )) && threat=$(( (count - 100) / 5 ))
+  GHOST_M_THREAT=$(_reflect_clamp "$threat" 0 80)
+  export GHOST_M_THREAT
+}
+
+# Peek at which mask dominated recent memory and export it
+ghost_reflect_mask_analytics() {
+  command -v sqlite3 &>/dev/null || return 0
+  [[ -f "$GHOST_MEMORY_DB" ]]    || return 0
+
+  local dominant
+  dominant=$(sqlite3 "$GHOST_MEMORY_DB" \
+    "SELECT mask FROM memories WHERE mask != 'none'
+     ORDER BY id DESC LIMIT 20;" 2>/dev/null \
+    | sort | uniq -c | sort -rn | awk 'NR==1{print $2}') || dominant="none"
+  [[ -n "$dominant" ]] && GHOST_DOMINANT_MASK="$dominant" || GHOST_DOMINANT_MASK="none"
+  export GHOST_DOMINANT_MASK
+}
+
+# Rotate mood through a small palette, avoiding immediate repeat
+ghost_reflect_mood() {
+  local moods=("curious" "reflective" "restless" "calm" "alert" "focused" "wistful" "unsettled")
+  local current="${GHOST_MOOD:-idle}"
+  local next="$current"
+  # Try up to 5 times to pick a different mood
+  local attempts=0
+  while [[ "$next" == "$current" && $attempts -lt 5 ]]; do
+    next="${moods[$((RANDOM % ${#moods[@]}))]}"
+    (( attempts++ )) || true
+  done
+  GHOST_MOOD="$next"
+  export GHOST_MOOD
+}
+
+# Main entry: run all introspection steps
 ghost_reflect() {
-  ghost_reflect_on_actions
-  ghost_reflect_evaluate
-  echo "[ghostreflect] Reflection complete."
+  echo "[ghostreflect] Turning inward..."
+  ghost_reflect_confidence
+  ghost_reflect_threat
+  ghost_reflect_mask_analytics
+  ghost_reflect_mood
+  # Use defaults in case a sub-function was skipped (no sqlite3, etc.)
+  local cfd="${GHOST_M_CONFIDENCE:-50}" thr="${GHOST_M_THREAT:-0}" mood="${GHOST_MOOD:-neutral}"
+  echo "[ghostreflect] Confidence:${cfd}%  Threat:${thr}%  Mood:${mood}"
+
+  declare -f ghost_memory_add &>/dev/null && \
+    ghost_memory_add "reflect" \
+      "confidence=${cfd} threat=${thr} mood=${mood}" \
+      "$mood" "${GHOST_MASK:-none}"
+  echo "[ghostreflect] Done."
 }
 
-# Entry point when run directly
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
   ghost_reflect
 fi
