@@ -1,0 +1,22 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# Runtime / temp files
+*.pid
+*.tmp
+/tmp/
+
+# Ghost state dumps (should never be committed)
+ghost_state_*.json
+ghost_memory_*.bin
