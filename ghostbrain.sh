@@ -48,6 +48,8 @@ export GHOST_M_PROACTIVITY=0
 export GHOST_M_CURIOSITY=0
 export GHOST_M_CONFIDENCE=50
 export GHOST_M_THREAT=0
+export GHOST_TEMPERATURE=20
+export GHOST_ENTROPY=0
 
 # Named-pipe file descriptor (fixed FD 9 — bash 3.2 compatible)
 _GHOST_PIPE_FD=""
@@ -159,11 +161,21 @@ _ghost_loop() {
     (( GHOST_CYCLES++ )) || true
     export GHOST_CYCLES
 
+    # Per-cycle heating: Ghost warms up +2–5°C each tick
+    local _heat=$(( (RANDOM % 4) + 2 ))
+    (( GHOST_TEMPERATURE += _heat )) || true
+    [[ $GHOST_TEMPERATURE -gt 150 ]] && GHOST_TEMPERATURE=150
+    export GHOST_TEMPERATURE
+
     # Always: check the input pipe
     _ghost_drain_pipe
 
-    # Every 5 cycles: reflect
+    # Every 5 cycles: reflect (brain self-cools -1–3°C, ghostreflect cools further)
     if (( GHOST_CYCLES % GHOST_REFLECT_EVERY == 0 )); then
+      local _bcool=$(( (RANDOM % 3) + 1 ))
+      (( GHOST_TEMPERATURE -= _bcool )) || true
+      [[ $GHOST_TEMPERATURE -lt 0 ]] && GHOST_TEMPERATURE=0
+      export GHOST_TEMPERATURE
       declare -f ghost_reflect &>/dev/null && ghost_reflect >/dev/null 2>&1 || true
     fi
 

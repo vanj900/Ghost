@@ -121,6 +121,24 @@ ghost_adapt_mask() {
   fi
   export GHOST_MASK
   echo "[ghostadapt] Mask tuned to: ${GHOST_MASK}"
+
+  # Thermodynamics: switching masks costs energy
+  case "$GHOST_MASK" in
+    Healer)
+      (( GHOST_TEMPERATURE -= 5 )) || true
+      [[ $GHOST_TEMPERATURE -lt 0 ]] && GHOST_TEMPERATURE=0
+      echo "[ghostadapt] Healer cools Ghost -5°C → ${GHOST_TEMPERATURE}°C"
+      ;;
+    Judge)
+      (( GHOST_TEMPERATURE += 10 )) || true
+      [[ $GHOST_TEMPERATURE -gt 150 ]] && GHOST_TEMPERATURE=150
+      echo "[ghostadapt] Judge heats Ghost +10°C → ${GHOST_TEMPERATURE}°C"
+      ;;
+    Courier)
+      echo "[ghostadapt] Courier efficient — no heat cost (${GHOST_TEMPERATURE}°C)"
+      ;;
+  esac
+  export GHOST_TEMPERATURE
 }
 
 # ── Main entry: run all adaptation steps ─────────────────────────────────────

@@ -39,6 +39,8 @@ ghost_hud_render() {
   local mood="${GHOST_MOOD:-idle}"
   local stage="${GHOST_STAGE:-dormant}"
   local cycles="${GHOST_CYCLES:-0}"
+  local temp="${GHOST_TEMPERATURE:-20}"
+  local entropy="${GHOST_ENTROPY:-0}"
   local mem_count
   mem_count=$(declare -f ghost_memory_count &>/dev/null && ghost_memory_count || echo "0")
 
@@ -95,6 +97,22 @@ ghost_hud_render() {
   # Confidence / threat
   printf '  %bConfidence%b    '; _ghost_bar "$m_cfd" 20 "$_C_CYN"; printf '  %3d%%\n' "$m_cfd"
   printf '  %bThreat%b        '; _ghost_bar "$m_thr" 20 "$_C_RED"; printf '  %3d%%\n' "$m_thr"
+  printf '\n'
+
+  # Thermodynamic state
+  local temp_bar=$(( temp > 100 ? 100 : temp ))
+  local ent_disp
+  if (( entropy >= 100 )); then
+    ent_disp="1.00"
+  else
+    printf -v ent_disp "0.%02d" "$entropy"
+  fi
+  printf '  %bTemperature%b   '; _ghost_bar "$temp_bar" 20 "$_C_RED";  printf '  %3d°C\n' "$temp"
+  printf '  %bEntropy%b       '; _ghost_bar "$entropy"  20 "$_C_YLW"; printf '  %s\n' "$ent_disp"
+  if (( temp > 90 )); then
+    printf '\n  %b⚠  HEAT DEATH RISK — temperature critical! Cool down immediately! ⚠%b\n' \
+      "$_C_BOLD$_C_RED" "$_C_RST"
+  fi
   printf '\n'
 
   # Recent memories
