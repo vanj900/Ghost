@@ -18,3 +18,12 @@ ghost_memory_*.db
 
 # Named pipe (auto-created on start)
 /tmp/ghost.pipe
+
+# Python build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+.pytest_cache/
