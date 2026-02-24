@@ -18,12 +18,23 @@ _reflect_clamp() {
   echo "$v"
 }
 
-# Confidence drifts with a small random walk (feels more alive)
+# Reflection cools Ghost (-5 to -15°C) and sets confidence = 100 - temperature
 ghost_reflect_confidence() {
-  local current="${GHOST_M_CONFIDENCE:-50}"
-  local delta=$(( RANDOM % 11 - 5 ))   # −5 to +5
-  GHOST_M_CONFIDENCE=$(_reflect_clamp "$(( current + delta ))")
+  local cool=$(( (RANDOM % 11) + 5 ))   # 5–15°C cooling
+  (( GHOST_TEMPERATURE -= cool )) || true
+  [[ $GHOST_TEMPERATURE -lt 0 ]] && GHOST_TEMPERATURE=0
+  export GHOST_TEMPERATURE
+
+  # Confidence is inverse of heat: cooler = more confident (cap temp at 100 for formula)
+  GHOST_M_CONFIDENCE=$(( 100 - (GHOST_TEMPERATURE > 100 ? 100 : GHOST_TEMPERATURE) ))
+  [[ $GHOST_M_CONFIDENCE -lt 0 ]]   && GHOST_M_CONFIDENCE=0
+  [[ $GHOST_M_CONFIDENCE -gt 100 ]] && GHOST_M_CONFIDENCE=100
   export GHOST_M_CONFIDENCE
+
+  # Introspection adds a little entropy (self-examination is complex)
+  (( GHOST_ENTROPY += 3 )) || true
+  [[ $GHOST_ENTROPY -gt 100 ]] && GHOST_ENTROPY=100
+  export GHOST_ENTROPY
 }
 
 # Threat rises if the diary is growing very large (Ghost has been running a long time)

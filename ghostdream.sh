@@ -45,6 +45,18 @@ ghost_dream_cycle() {
   summary=$(printf '%s' "$vision" | tr '\n' ' ' | cut -c1-150)
   echo "[ghostdream] Vision: ${summary}"
 
+  # Thermodynamics: coherent response (>50 chars) bursts entropy down; else entropy rises
+  if (( ${#vision} > 50 )); then
+    (( GHOST_ENTROPY -= 5 )) || true
+    [[ $GHOST_ENTROPY -lt 0 ]] && GHOST_ENTROPY=0
+    echo "[ghostdream] Coherent vision — entropy reduced to ${GHOST_ENTROPY}"
+  else
+    (( GHOST_ENTROPY += 8 )) || true
+    [[ $GHOST_ENTROPY -gt 100 ]] && GHOST_ENTROPY=100
+    echo "[ghostdream] Fragmented vision — entropy rising to ${GHOST_ENTROPY}"
+  fi
+  export GHOST_ENTROPY
+
   # Write to memory diary
   declare -f ghost_memory_add &>/dev/null && \
     ghost_memory_add "dream" "$summary" "dreaming" "${GHOST_MASK:-none}"

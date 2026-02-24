@@ -12,6 +12,13 @@ ghost_llm_query() {
   local prompt="${1:?ghost_llm_query: prompt required}"
   local model="${2:-$GHOST_LLM_MODEL}"
 
+  # Prefix prompt with current thermodynamic state
+  local _temp="${GHOST_TEMPERATURE:-20}"
+  local _ent_raw="${GHOST_ENTROPY:-0}"
+  local _ent_disp
+  printf -v _ent_disp "0.%02d" "$(( _ent_raw > 99 ? 99 : _ent_raw ))"
+  prompt="You are operating at ${_temp}°C with entropy ${_ent_disp}. ${prompt}"
+
   # Build the JSON payload (prefer jq; fall back to sed-based escaping)
   local payload
   if command -v jq &>/dev/null; then
