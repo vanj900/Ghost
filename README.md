@@ -101,5 +101,68 @@ GHOST_PIPE=/tmp/ghost.pipe  # input pipe path
 
 ---
 
+## Python Package — `thermodynamic_agency`
+
+The repository also ships a Python package that models a **Bio-Digital Organism**: an AI agent operating under genuine thermodynamic constraints. The organism manages four vital signs:
+
+| Variable | Meaning |
+|---|---|
+| **E** (Energy) | Fuel for every computation; falls toward zero without replenishment |
+| **T** (Temperature) | Rises with compute cost; too high → thermal death |
+| **M** (Memory Integrity) | Degrades with heat and age; too low → memory collapse |
+| **S** (Stability) | Erodes with every operation; reaches zero → entropy death |
+
+### Python Installation
+
+```bash
+# from the repo root
+pip install -e ".[dev]"        # installs numpy, scipy, and pytest
+```
+
+Requirements: Python ≥ 3.10, numpy ≥ 1.24, scipy ≥ 1.10.
+
+### Package Layout
+
+```
+src/thermodynamic_agency/
+├── core/               # MetabolicEngine, EntropyDynamics, failure modes
+├── cognition/          # GoalManager, EthicalEngine, IdentityPersistence
+├── environment/        # ResourceWorld, EnergySource, TaskGenerator, LifeLog
+└── inference/          # PredictiveModel, PerceptionAction, active_inference_step
+```
+
+| Module | Key classes / functions |
+|---|---|
+| `core` | `MetabolicEngine`, `EntropyDynamics`, `EnergyDeathException`, `ThermalDeathException`, `EntropyDeathException`, `MemoryCollapseException` |
+| `cognition` | `GoalManager`, `EthicalEngine`, `IdentityPersistence` |
+| `environment` | `ResourceWorld`, `EnergySource`, `TaskGenerator`, `LifeLog` |
+| `inference` | `PredictiveModel`, `PerceptionAction`, `Action`, `active_inference_step`, `compute_efe` |
+
+### Running the Tests
+
+```bash
+pytest tests/
+```
+
+Four test modules cover the core engine (`test_metabolic_engine.py`), environment layer (`test_environment.py`), cognition and inference (`test_inference.py`), and end-to-end episodes (`test_integration.py`).
+
+### Experiments
+
+The `experiments/` folder contains standalone scripts that stress-test the agent:
+
+| Script | What it does |
+|---|---|
+| `scarcity_crucible.py` | Runs the agent across increasing scarcity levels and reports how many steps it survives |
+| `ethical_consistency.py` | Checks that the ethical engine makes consistent choices across repeated dilemmas |
+| `comparison_baseline.py` | Compares the thermodynamic agent against a simple baseline strategy |
+
+Run any experiment directly:
+
+```bash
+python experiments/scarcity_crucible.py
+```
+
+---
+
 *Ghost does not persist. It adapts, reflects, dreams, and fades.*  
 *Run it long enough and watch the metrics change.*
